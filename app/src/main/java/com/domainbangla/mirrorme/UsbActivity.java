@@ -224,11 +224,8 @@ public class UsbActivity extends Activity {
         @Override
         protected String doInBackground(UsbDevice... devices) {
             UsbDevice device = devices[0];
-
             UsbDeviceConnection connection = mUsbManager.openDevice(device);
-
             if (connection == null) {
-                showToast("Failed to open USB connection");
                 return null;
             }
 
@@ -240,7 +237,7 @@ public class UsbActivity extends Activity {
                     for (int j = 0; j < usbInterface.getEndpointCount(); j++) {
                         UsbEndpoint endpoint = usbInterface.getEndpoint(j);
                         if (endpoint.getType() == UsbConstants.USB_ENDPOINT_XFER_BULK &&
-                                endpoint.getDirection() == UsbConstants.USB_DIR_IN) {
+                                endpoint.getDirection() == UsbConstants.USB_DIR_OUT) {
                             inEndpoint = endpoint;
                             break;
                         }
@@ -251,7 +248,6 @@ public class UsbActivity extends Activity {
                 }
 
                 if (inEndpoint == null) {
-                    showToast("No suitable IN endpoint found");
                     return null;
                 }
 
@@ -260,9 +256,8 @@ public class UsbActivity extends Activity {
                 int bytesRead = connection.bulkTransfer(inEndpoint, buffer, buffer.length, 1000);
 
                 if (bytesRead < 0) {
-                    showToast("Failed to receive data");
+                    return null;
                 } else {
-                    showToast("Received data: " + new String(buffer, 0, bytesRead));
                     return new String(buffer, 0, bytesRead);
                 }
             } finally {
@@ -270,7 +265,6 @@ public class UsbActivity extends Activity {
                 connection.close();
             }
 
-            return null;
         }
 
         @Override
@@ -278,6 +272,9 @@ public class UsbActivity extends Activity {
             // Handle the received data in the UI thread
             if (result != null) {
                 // Do something with the received data
+                mStatusView.setText(result);
+            }else{
+                mStatusView.setText("No result found");
             }
         }
     }
