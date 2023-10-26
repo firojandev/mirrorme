@@ -40,7 +40,24 @@
 <!--                android:resource="@xml/device_filter" />-->
 <!--        </activity>-->
 
-        <activity android:name=".UsbActivity"
+<!--        <activity android:name=".UsbReceiverActivity"-->
+<!--            android:launchMode="singleTop"-->
+<!--            android:exported="true">-->
+
+<!--            &lt;!&ndash; Launch as default from Android Studio &ndash;&gt;-->
+<!--            <intent-filter>-->
+<!--                <action android:name="android.intent.action.MAIN"/>-->
+<!--                <category android:name="android.intent.category.LAUNCHER"/>-->
+<!--            </intent-filter>-->
+
+<!--            &lt;!&ndash; Launch when USB device attached &ndash;&gt;-->
+<!--            <intent-filter>-->
+<!--                <action android:name="android.hardware.usb.action.USB_DEVICE_ATTACHED" />-->
+<!--            </intent-filter>-->
+<!--            <meta-data android:name="android.hardware.usb.action.USB_DEVICE_ATTACHED"-->
+<!--                android:resource="@xml/device_filter" />-->
+<!--        </activity>-->
+        <activity android:name=".UsbSenderActivity"
             android:launchMode="singleTop"
             android:exported="true">
 

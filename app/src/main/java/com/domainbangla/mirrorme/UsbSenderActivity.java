@@ -28,16 +28,17 @@ import android.hardware.usb.UsbDeviceConnection;
 import android.hardware.usb.UsbEndpoint;
 import android.hardware.usb.UsbInterface;
 import android.hardware.usb.UsbManager;
-import android.os.AsyncTask;
 import android.os.Bundle;
 import android.util.Log;
+import android.view.View;
+import android.widget.Button;
 import android.widget.TextView;
 import android.widget.Toast;
 
 import java.text.ParseException;
 import java.util.HashMap;
 
-public class UsbActivity extends Activity {
+public class UsbSenderActivity extends Activity {
     private static final String TAG = "UsbEnumerator";
 
     private static final String ACTION_USB_PERMISSION = "com.domainbangla.mirrorme.USB_PERMISSION";
@@ -48,12 +49,16 @@ public class UsbActivity extends Activity {
 
     /* UI elements */
     private TextView mStatusView, mResultView;
+    private Button btnSend;
+
+    UsbDevice usbDevice;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_usb);
 
+        btnSend = (Button) findViewById(R.id.btnSend);
         mStatusView = (TextView) findViewById(R.id.text_status);
         mResultView = (TextView) findViewById(R.id.text_result);
 
@@ -64,6 +69,13 @@ public class UsbActivity extends Activity {
         registerReceiver(mUsbReceiver, filter);
 
         handleIntent(getIntent());
+
+        btnSend.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                send();
+            }
+        });
     }
 
     @Override
@@ -95,7 +107,8 @@ public class UsbActivity extends Activity {
                     if (intent.getBooleanExtra(UsbManager.EXTRA_PERMISSION_GRANTED, false)) {
                         if (device != null) {
                             // Permission granted, you can now communicate with the USB device
-                            communication(device);
+                            usbDevice = device;
+                            send();
                         }
                     } else {
                         Log.d(TAG, "Permission denied for USB device: " + device.getDeviceName());
@@ -157,7 +170,8 @@ public class UsbActivity extends Activity {
             if (mUsbManager.hasPermission(device)) {
                 // Permission already granted, open the device and start communication
                 // Implement device communication here
-                communication(device);
+                usbDevice = device;
+                send();
             } else {
                 // Request USB permission
                 PendingIntent pi = PendingIntent.getBroadcast(this, 0, new Intent(ACTION_USB_PERMISSION), 0);
@@ -168,20 +182,23 @@ public class UsbActivity extends Activity {
     }
 
 
-    public void communication(UsbDevice device) {
-        // Open a connection to the USB device
-        UsbDeviceConnection connection = mUsbManager.openDevice(device);
+    public void send() {
+        if (usbDevice == null){
+            showToast("No USB device is found!");
+            return;
+        }
 
+        // Open a connection to the USB device
+        UsbDeviceConnection connection = mUsbManager.openDevice(usbDevice);
         if (connection == null) {
             showToast("Failed to open USB connection");
             return;
         }
-
         try {
             // Find the first OUT endpoint
             UsbEndpoint outEndpoint = null;
-            for (int i = 0; i < device.getInterfaceCount(); i++) {
-                UsbInterface usbInterface = device.getInterface(i);
+            for (int i = 0; i < usbDevice.getInterfaceCount(); i++) {
+                UsbInterface usbInterface = usbDevice.getInterface(i);
                 for (int j = 0; j < usbInterface.getEndpointCount(); j++) {
                     UsbEndpoint endpoint = usbInterface.getEndpoint(j);
                     if (endpoint.getType() == UsbConstants.USB_ENDPOINT_XFER_BULK &&
@@ -211,83 +228,15 @@ public class UsbActivity extends Activity {
             } else {
                 showToast("Data sent successfully");
             }
-
-            receiveData(device);
-
-        } finally {
+        }catch (Exception e){
+            e.printStackTrace();
+            showToast("Exception:"+e.getMessage());
+        }
+        finally {
             // Close the USB connection when done
             connection.close();
         }
     }
-
-    private class ReceiveDataTask extends AsyncTask<UsbDevice, Void, String> {
-        @Override
-        protected String doInBackground(UsbDevice... devices) {
-            UsbDevice device = devices[0];
-            UsbDeviceConnection connection = mUsbManager.openDevice(device);
-            if (connection == null) {
-                return null;
-            }
-
-            try {
-                // Find the first IN endpoint
-                UsbEndpoint inEndpoint = null;
-                for (int i = 0; i < device.getInterfaceCount(); i++) {
-                    UsbInterface usbInterface = device.getInterface(i);
-                    for (int j = 0; j < usbInterface.getEndpointCount(); j++) {
-                        UsbEndpoint endpoint = usbInterface.getEndpoint(j);
-                        if (endpoint.getType() == UsbConstants.USB_ENDPOINT_XFER_BULK &&
-                                endpoint.getDirection() == UsbConstants.USB_DIR_OUT) {
-                            inEndpoint = endpoint;
-                            break;
-                        }
-                    }
-                    if (inEndpoint != null) {
-                        break;
-                    }
-                }
-
-                if (inEndpoint == null) {
-                    return null;
-                }
-
-                // Receive data
-                byte[] buffer = new byte[1024];
-                int bytesRead = connection.bulkTransfer(inEndpoint, buffer, buffer.length, 1000);
-
-                if (bytesRead < 0) {
-                    return null;
-                } else {
-                    return new String(buffer, 0, bytesRead);
-                }
-            } finally {
-                // Close the USB connection when done
-                connection.close();
-            }
-
-        }
-
-        @Override
-        protected void onPostExecute(String result) {
-            // Handle the received data in the UI thread
-            if (result != null) {
-                // Do something with the received data
-                mStatusView.setText(result);
-            }else{
-                mStatusView.setText("No result found");
-            }
-        }
-    }
-
-    // ... (your existing code)
-
-    // Method to initiate receiving data
-    private void receiveData(UsbDevice device) {
-        // Execute the AsyncTask to receive data in the background
-        new ReceiveDataTask().execute(device);
-    }
-
-
     /**
      * Print a basic description about a specific USB device.
      * @param device USB device to query.
