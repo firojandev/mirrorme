@@ -101,7 +101,8 @@ public class UsbSenderActivity extends Activity {
                     printStatus(getString(R.string.status_removed));
                     printDeviceDescription(device);
                 }
-            } if (ACTION_USB_PERMISSION.equals(action)) {
+            }
+            if (ACTION_USB_PERMISSION.equals(action)) {
                 synchronized (this) {
                     UsbDevice device = intent.getParcelableExtra(UsbManager.EXTRA_DEVICE);
                     if (intent.getBooleanExtra(UsbManager.EXTRA_PERMISSION_GRANTED, false)) {
@@ -119,14 +120,15 @@ public class UsbSenderActivity extends Activity {
         }
     };
 
-    public void showToast(String msg){
-        Toast.makeText(this,msg,Toast.LENGTH_SHORT).show();
+    public void showToast(String msg) {
+        Toast.makeText(this, msg, Toast.LENGTH_SHORT).show();
 
     }
 
     /**
      * Determine whether to list all devices or query a specific device from
      * the provided intent.
+     *
      * @param intent Intent to query.
      */
     private void handleIntent(Intent intent) {
@@ -183,62 +185,36 @@ public class UsbSenderActivity extends Activity {
 
 
     public void send() {
-        if (usbDevice == null){
+        if (usbDevice == null) {
             showToast("No USB device is found!");
             return;
         }
-
-        // Open a connection to the USB device
         UsbDeviceConnection connection = mUsbManager.openDevice(usbDevice);
-        if (connection == null) {
-            showToast("Failed to open USB connection");
-            return;
-        }
         try {
-            // Find the first OUT endpoint
-            UsbEndpoint outEndpoint = null;
-            for (int i = 0; i < usbDevice.getInterfaceCount(); i++) {
-                UsbInterface usbInterface = usbDevice.getInterface(i);
-                for (int j = 0; j < usbInterface.getEndpointCount(); j++) {
-                    UsbEndpoint endpoint = usbInterface.getEndpoint(j);
-                    if (endpoint.getType() == UsbConstants.USB_ENDPOINT_XFER_BULK &&
-                            endpoint.getDirection() == UsbConstants.USB_DIR_OUT) {
-                        outEndpoint = endpoint;
-                        break;
-                    }
-                }
-                if (outEndpoint != null) {
-                    break;
-                }
-            }
+            UsbInterface usbInterface = usbDevice.getInterface(0); // You may need to adjust the interface and endpoint indices.
+            UsbEndpoint endpoint = usbInterface.getEndpoint(0);
 
-            if (outEndpoint == null) {
-                showToast("No suitable OUT endpoint found");
-                return;
-            }
+            byte[] dataToSend = "Hello, Device 2!".getBytes();
+            int bytesSent = connection.bulkTransfer(endpoint, dataToSend, dataToSend.length, 1000);
 
-            // Prepare the data to be sent
-            byte[] dataToSend = "Hello, USB Device!".getBytes();
-
-            // Send the data
-            int result = connection.bulkTransfer(outEndpoint, dataToSend, dataToSend.length, 1000);
-
-            if (result < 0) {
-                showToast("Failed to send data");
+            if (bytesSent > 0) {
+                showToast("Data sent!");
             } else {
-                showToast("Data sent successfully");
+                showToast("Failed to send data");
             }
-        }catch (Exception e){
+
+            connection.releaseInterface(usbInterface);
+        } catch (Exception e) {
             e.printStackTrace();
-            showToast("Exception:"+e.getMessage());
-        }
-        finally {
-            // Close the USB connection when done
+        } finally {
             connection.close();
         }
+
     }
+
     /**
      * Print a basic description about a specific USB device.
+     *
      * @param device USB device to query.
      */
     private void printDeviceDescription(UsbDevice device) {
